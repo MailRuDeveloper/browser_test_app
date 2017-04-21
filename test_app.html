@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width" />
+    <title>Заголовок игры - Игры Mail.Ru</title>
+    <script type="text/javascript" src="//games.mail.ru/app/1/static/mailru.core.js"></script>
+    <script   src="https://code.jquery.com/jquery-2.2.4.min.js" integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44=" crossorigin="anonymous"></script>
+    <style type="text/css">
+        .ctrls {
+            float: left;
+            width: 500px;
+        }
+        .info {
+            float: left;
+            width: 700px;
+        }
+        .clear {
+            clear: both;
+        }
+        .method {
+            color: green;
+        }
+        .response {
+            color: green;
+            word-break: break-all;
+        }
+        .sysinfo {
+            color: blue;
+        }
+        .method {
+            color: red;
+        }
+        #status {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+<div class="ctrls">
+    <p><button id="token" style="display:none">Токен авторизации</button></p>
+    <p><button id="auth" style="display:none">Вход</button></p>
+    <p><button id="register" style="display:none">Регистрация</button></p>
+    <p><button id="billing1" style="display:none">Фрейм оплаты (сумма 100 игровой валюты)</button></p>
+    <p><button id="billing5" style="display:none">Фрейм оплаты (сумма 100 рублей)</button></p>
+    <p><button id="billing2" style="display:none">Фрейм оплаты (сумма не указана)</button></p>
+    <p><button id="billing3" style="display:none">Фрейм оплаты (предмет, рубли)</button></p>
+    <p><button id="billing6" style="display:none">Фрейм оплаты (предмет, игровая валюта)</button></p>
+    <p><button id="billing4" style="display:none">Фрейм оплаты (получить урл, и показать)</button></p>
+    <a target="_blank" href="//games.mail.ru/app/1/static/test_app.html">Просмотреть страницу</a>
+</div>
+
+<div class="info">
+    <p><span class="sysinfo">Current user status:</span> <span id="status">-</span></p>
+    <div id="log"></div>
+    <iframe src="" id="payment" width="550" height="700" frameborder="0"></iframe>
+</div>
+<div class="clear"></div>
+
+<script>
+    (function apiHandshake(iframeApi) {
+        if (typeof iframeApi === 'undefined') {
+            console.log('Cannot find iframeApi function, are we inside an iframe?');
+            return;
+        }
+
+        var externalApi = null;
+
+        var callbacks = {
+            appid: 1,
+            getLoginStatusCallback: function (status){
+                addLog('getLoginStatus', status);
+                var el = document.getElementById('status');
+                if (status.status != 'ok'){
+                    el.innerText = status.status;
+                } else {
+                    var text = '';
+                    switch (status.loginStatus){
+                        case 0:
+                            text = 'no auth';
+                            $('#auth').show();
+                            $('#register').hide();
+                            break;
+                        case 1:
+                            text = 'authed, not registered';
+                            $('#register').show();
+                            $('#auth').hide();
+                            break;
+                        case 2:
+                            text = 'authed, registered';
+                            externalApi.userInfo();
+                            $('#billing1').show();
+                            $('#billing2').show();
+                            $('#billing3').show();
+                            $('#billing4').show();
+                            $('#billing5').show();
+                            $('#billing6').show();
+                            $('#token').show();
+                            $('#register').hide();
+                            $('#auth').hide();
+                            break;
+                    }
+                    el.innerText = text;
+                }
+            },
+            userInfoCallback: function(info){
+                addLog('userInfo', info);
+            },
+            registerUserCallback: function(status){
+                addLog('registerUser', status);
+                externalApi.getLoginStatus();
+            },
+            paymentFrameUrlCallback: function(url){
+                $('#payment').attr('src', url);
+            },
+            getAuthTokenCallback(token){
+                addLog('getAuthToken', token);
+            }
+        };
+
+        function error(err) {
+            throw new Error('Could not init external api ' + err);
+        }
+
+        function connected(api){
+            externalApi = api;
+            externalApi.getLoginStatus();
+        }
+
+
+        $('#auth').on('click', function(e){
+            console.log('Iframe call auth. ', iframeApi);
+            e.preventDefault();
+            externalApi.authUser();
+        });
+
+        $('#billing1').on('click', function(e){
+            console.log('Iframe call billing frame. ');
+            e.preventDefault();
+            externalApi.paymentFrame({
+                'scenario': 'top-up',
+                'merchant_param':{
+                    'virtual_amount': 100,
+                    'description': 'Пополнение 100 золотых'
+                }
+            });
+        });
+
+        $('#billing5').on('click', function(e){
+            console.log('Iframe call billing frame. ');
+            e.preventDefault();
+            externalApi.paymentFrame({
+                'scenario': 'top-up',
+                'merchant_param':{
+                    'amount': 100,
+                    'description': 'Пополнение на 100 рублей'
+                }
+            });
+        });
+
+        $('#billing2').on('click', function(e){
+            console.log('Iframe call billing frame. ');
+            e.preventDefault();
+            externalApi.paymentFrame({
+                'scenario': 'top-up',
+                'merchant_param':{
+                    'description': 'Покупка 100 золотых'
+                }
+            });
+        });
+
+        $('#billing3').on('click', function(e){
+            console.log('Iframe call billing frame. ');
+            e.preventDefault();
+            externalApi.paymentFrame({
+                'scenario': 'item',
+                'merchant_param':{
+                    'amount': 100,
+                    'description': 'Золотой сундук'
+                }
+            });
+        });
+        $('#billing6').on('click', function(e){
+            console.log('Iframe call billing frame. ');
+            e.preventDefault();
+            externalApi.paymentFrame({
+                'scenario': 'item',
+                'merchant_param':{
+                    'virtual_amount': 100,
+                    'description': 'Золотой сундук'
+                }
+            });
+        });
+
+        $('#billing4').on('click', function(e){
+            console.log('Iframe call billing frame. ');
+            e.preventDefault();
+            externalApi.paymentFrameUrl({
+                'scenario': 'item',
+                'merchant_param':{
+                    'amount': 200,
+                    'description': 'Золотой сундук (через paymentFrameUrl)'
+                }
+            });
+        });
+
+        $('#token').on('click', function(e){
+            e.preventDefault();
+            externalApi.getAuthToken();
+        });
+
+        $('#register').on('click', function(e){
+            e.preventDefault();
+            externalApi.registerUser();
+        });
+
+        iframeApi(callbacks).then(connected, error);
+    }(window.iframeApi));
+
+    function addLog(method, data){
+        $('#log').append('<p><span class="sysinfo">Called method:</span> <span class="method">' + method + '</span><br/><span class="sysinfo">Response:</span><br/><span class="response">' + JSON.stringify(data) + '</span></p>');
+    }
+</script>
+</body>
